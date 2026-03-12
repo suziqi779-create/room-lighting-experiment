@@ -2,78 +2,115 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8">
-<title>灯光调节实验</title>
+<title>Room Lighting Experiment</title>
 
 <style>
 
 body{
-margin:0;
-overflow:hidden;
-font-family:sans-serif;
-background:#000;
+    margin:0;
+    overflow:hidden;
+    font-family:sans-serif;
+    background:#000;
 }
 
-/* 房间图片层 */
+/* 房间图片 */
 
-#room{
-position:fixed;
-top:0;
-left:0;
-width:100vw;
-height:100vh;
-overflow:hidden;
+#roomImage{
+
+    position:fixed;
+    left:0;
+    top:0;
+
+    width:100vw;
+    height:100vh;
+
+    object-fit:contain;
+
+    transition:opacity 0.25s;
 }
 
-.room-img{
-position:absolute;
-top:0;
-left:0;
-width:100%;
-height:100%;
-object-fit:cover;
-opacity:0;
-transition:opacity 0.2s linear;
+
+/* 控制面板 */
+
+#controlPanel{
+
+    position:fixed;
+    right:40px;
+    bottom:40px;
+
+    padding:20px;
+    border-radius:16px;
+
+    background:rgba(0,0,0,0.35);
+    backdrop-filter:blur(10px);
+
+    z-index:20;
 }
 
-/* 调色盘 */
 
-#palette{
-position:fixed;
-right:40px;
-bottom:40px;
-width:220px;
-height:220px;
-border:2px solid white;
-cursor:crosshair;
+/* 调色矩阵 */
+
+#matrix {
+
+    width:240px;
+    height:240px;
+
+    background:
+        linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%),
+        linear-gradient(to right, #ff9e42 0%, #b1d2ff 100%);
+
+    border:1px solid rgba(255,255,255,0.2);
+    border-radius:12px;
+
+    cursor:crosshair;
+    position:relative;
+
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+
+    overflow:hidden;
 }
 
-/* 信息面板 */
 
-#panel{
-position:fixed;
-right:40px;
-bottom:280px;
-background:rgba(0,0,0,0.6);
-padding:12px;
-border-radius:8px;
-color:white;
-font-size:14px;
+/* 光标 */
+
+#cursor{
+
+    width:20px;
+    height:20px;
+
+    border:2px solid #fff;
+    border-radius:50%;
+
+    position:absolute;
+
+    transform:translate(-50%,-50%);
+
+    pointer-events:none;
+
+    box-shadow:0 0 15px rgba(0,0,0,1);
+
+    background:rgba(255,255,255,0.2);
+
+    z-index:5;
 }
 
-#finishBtn{
-margin-top:10px;
-width:100%;
-padding:8px;
-border:none;
-border-radius:6px;
-background:#00ffcc;
-font-weight:bold;
-cursor:pointer;
-opacity:0.4;
-}
 
-#finishBtn.enabled{
-opacity:1;
+/* 提交按钮 */
+
+#submitBtn{
+
+    margin-top:20px;
+    width:240px;
+
+    padding:10px;
+
+    border:none;
+    border-radius:10px;
+
+    background:#ffffff;
+    font-size:16px;
+
+    cursor:pointer;
 }
 
 </style>
@@ -81,7 +118,25 @@ opacity:1;
 
 <body>
 
-<div id="room">
+
+<img id="roomImage">
+
+
+<div id="controlPanel">
+
+    <div id="matrix">
+        <div id="cursor"></div>
+    </div>
+
+    <button id="submitBtn">提交选择</button>
+
+</div>
+
+
+
+<script>
+
+/* 图片路径 */
 
 const imgPaths = {
     warmLow: '3.jpg',
@@ -90,138 +145,140 @@ const imgPaths = {
     coolHigh: '1.jpg'
 };
 
-</div>
 
-<canvas id="palette" width="220" height="220"></canvas>
 
-<div id="panel">
+/* 预加载图片 */
 
-<div>色温: <span id="temp">--</span></div>
-<div>亮度: <span id="bright">--</span></div>
+Object.values(imgPaths).forEach(src=>{
+    const img = new Image();
+    img.src = src;
+});
 
-<button id="finishBtn" disabled>完成实验</button>
 
-</div>
 
-<script>
+const matrix = document.getElementById("matrix");
+const cursor = document.getElementById("cursor");
+const roomImage = document.getElementById("roomImage");
 
-const palette=document.getElementById("palette")
-const ctx=palette.getContext("2d")
+let x = Math.random();
+let y = Math.random();
 
-const tempText=document.getElementById("temp")
-const brightText=document.getElementById("bright")
+let startTime = Date.now();
 
-const warmLow=document.getElementById("warmLow")
-const warmHigh=document.getElementById("warmHigh")
-const coolLow=document.getElementById("coolLow")
-const coolHigh=document.getElementById("coolHigh")
 
-let cursorX=Math.random()
-let cursorY=Math.random()
 
-let brightness=50
-let colorTemp=4000
+/* 更新光标 */
 
-/* 绘制调色盘 */
+function updateCursor(){
 
-function drawPalette(){
-
-for(let x=0;x<palette.width;x++){
-
-let grad=ctx.createLinearGradient(0,0,0,palette.height)
-
-let t=2700+(x/palette.width)*3800
-
-grad.addColorStop(0,"rgb(255,200,150)")
-grad.addColorStop(1,"rgb(50,50,80)")
-
-ctx.fillStyle=grad
-ctx.fillRect(x,0,1,palette.height)
+    cursor.style.left = (x*100)+"%";
+    cursor.style.top = ((1-y)*100)+"%";
 
 }
 
-drawCursor()
 
-}
 
-function drawCursor(){
-
-ctx.beginPath()
-ctx.arc(cursorX*palette.width,cursorY*palette.height,6,0,Math.PI*2)
-ctx.fillStyle="white"
-ctx.fill()
-
-}
-
-/* 更新灯光 */
+/* 更新房间灯光 */
 
 function updateLighting(){
 
-let x=cursorX
-let y=cursorY
+    if(x<0.5 && y<0.5){
+        roomImage.src = imgPaths.warmLow;
+    }
 
-warmLow.style.opacity=(1-x)*(1-y)
-warmHigh.style.opacity=(1-x)*y
-coolLow.style.opacity=x*(1-y)
-coolHigh.style.opacity=x*y
+    if(x<0.5 && y>=0.5){
+        roomImage.src = imgPaths.warmHigh;
+    }
 
-colorTemp=Math.round(2700+x*3800)
-brightness=Math.round(y*100)
+    if(x>=0.5 && y<0.5){
+        roomImage.src = imgPaths.coolLow;
+    }
 
-tempText.innerText=colorTemp+"K"
-brightText.innerText=brightness+"%"
+    if(x>=0.5 && y>=0.5){
+        roomImage.src = imgPaths.coolHigh;
+    }
 
 }
 
-/* 鼠标控制 */
 
-palette.addEventListener("mousemove",e=>{
 
-if(e.buttons!==1)return
+/* 点击调色盘 */
 
-let rect=palette.getBoundingClientRect()
+matrix.addEventListener("click",function(e){
 
-cursorX=(e.clientX-rect.left)/rect.width
-cursorY=(e.clientY-rect.top)/rect.height
+    const rect = matrix.getBoundingClientRect();
 
-cursorX=Math.max(0,Math.min(1,cursorX))
-cursorY=Math.max(0,Math.min(1,cursorY))
+    x = (e.clientX - rect.left) / rect.width;
+    y = 1 - (e.clientY - rect.top) / rect.height;
 
-ctx.clearRect(0,0,palette.width,palette.height)
-drawPalette()
+    updateCursor();
+    updateLighting();
 
-updateLighting()
+});
 
-})
+
 
 /* 初始化 */
 
-drawPalette()
-updateLighting()
+updateCursor();
+updateLighting();
 
-/* 3秒提交锁 */
 
-const finishBtn=document.getElementById("finishBtn")
 
-setTimeout(()=>{
-finishBtn.disabled=false
-finishBtn.classList.add("enabled")
-},3000)
 
-/* Credamo回传 */
+/* 提交按钮 */
 
-finishBtn.onclick=()=>{
+document.getElementById("submitBtn").onclick = function(){
 
-let url=
-"https://www.credamo.com/survey/QUESTIONNAIRE_ID"+
-"?brightness="+brightness+
-"&colorTemp="+colorTemp
 
-window.location.href=url
+    let duration = Date.now() - startTime;
 
-}
+    if(duration < 1000){
+
+        alert("请至少观察 1 秒后再提交");
+
+        return;
+
+    }
+
+
+    /* 实验数据 */
+
+    const result = {
+
+        brightness:y,
+        colorTemp:x,
+        time:duration
+
+    };
+
+
+    console.log(result);
+
+
+
+    /* Credamo 回传地址（发布问卷后填写） */
+
+    const credamoURL = "https://www.credamo.com/survey/XXXX";
+
+
+
+    const query =
+
+        "?brightness="+result.brightness+
+        "&colorTemp="+result.colorTemp+
+        "&time="+result.time;
+
+
+
+    window.location.href = credamoURL + query;
+
+};
+
+
 
 </script>
+
 
 </body>
 </html>
