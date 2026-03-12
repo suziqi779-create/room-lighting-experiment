@@ -8,56 +8,66 @@
 
 body{
 margin:0;
+overflow:hidden;
 font-family:sans-serif;
-background:#111;
-color:white;
-display:flex;
-align-items:center;
-justify-content:center;
+background:#000;
+}
+
+/* 房间图片层 */
+
+#room{
+position:fixed;
+top:0;
+left:0;
+width:100vw;
 height:100vh;
+overflow:hidden;
 }
 
-#container{
-display:flex;
-gap:40px;
-align-items:center;
+.room-img{
+position:absolute;
+top:0;
+left:0;
+width:100%;
+height:100%;
+object-fit:cover;
+opacity:0;
+transition:opacity 0.2s linear;
 }
 
-#canvas{
-width:520px;
-height:520px;
-border:2px solid #333;
+/* 调色盘 */
+
+#palette{
+position:fixed;
+right:40px;
+bottom:40px;
+width:220px;
+height:220px;
+border:2px solid white;
 cursor:crosshair;
 }
 
-#ui-panel{
-width:220px;
-background:#222;
-padding:20px;
-border-radius:12px;
-}
+/* 信息面板 */
 
-.label-grid{
-display:grid;
-grid-template-columns:1fr;
-gap:18px;
-}
-
-.data-value{
-font-size:18px;
-font-weight:bold;
+#panel{
+position:fixed;
+right:40px;
+bottom:280px;
+background:rgba(0,0,0,0.6);
+padding:12px;
+border-radius:8px;
+color:white;
+font-size:14px;
 }
 
 #finishBtn{
+margin-top:10px;
 width:100%;
-margin-top:20px;
-padding:10px;
-border-radius:10px;
+padding:8px;
 border:none;
-font-size:14px;
-font-weight:600;
+border-radius:6px;
 background:#00ffcc;
-color:black;
+font-weight:bold;
 cursor:pointer;
 opacity:0.4;
 }
@@ -66,214 +76,155 @@ opacity:0.4;
 opacity:1;
 }
 
-#finishBtn:disabled{
-cursor:not-allowed;
-}
-
-.note{
-margin-top:12px;
-font-size:12px;
-color:#aaa;
-}
-
 </style>
 </head>
 
 <body>
 
-<div id="container">
+<div id="room">
 
-<canvas id="canvas" width="512" height="512"></canvas>
+<img id="warmLow" class="room-img"
+src="https://raw.githubusercontent.com/suziqi779-create/room-lighting-experiment/main/3.png">
 
-<div id="ui-panel">
+<img id="warmHigh" class="room-img"
+src="https://raw.githubusercontent.com/suziqi779-create/room-lighting-experiment/main/2.png">
 
-<div class="label-grid">
+<img id="coolLow" class="room-img"
+src="https://raw.githubusercontent.com/suziqi779-create/room-lighting-experiment/main/4.png">
 
-<div>
-色温 (X)  
-<br>
-<span id="val-x" class="data-value">--</span>
-</div>
-
-<div>
-亮度 (Y)  
-<br>
-<span id="val-y" class="data-value">--</span>
-</div>
+<img id="coolHigh" class="room-img"
+src="https://raw.githubusercontent.com/suziqi779-create/room-lighting-experiment/main/1.png">
 
 </div>
+
+<canvas id="palette" width="220" height="220"></canvas>
+
+<div id="panel">
+
+<div>色温: <span id="temp">--</span></div>
+<div>亮度: <span id="bright">--</span></div>
 
 <button id="finishBtn" disabled>完成实验</button>
-
-<div class="note">
-拖动图片选择你觉得最舒适的灯光
-</div>
-
-</div>
 
 </div>
 
 <script>
 
-const canvas = document.getElementById("canvas")
-const ctx = canvas.getContext("2d")
+const palette=document.getElementById("palette")
+const ctx=palette.getContext("2d")
 
-const valX = document.getElementById("val-x")
-const valY = document.getElementById("val-y")
+const tempText=document.getElementById("temp")
+const brightText=document.getElementById("bright")
 
-let cursorX = 0.5
-let cursorY = 0.5
+const warmLow=document.getElementById("warmLow")
+const warmHigh=document.getElementById("warmHigh")
+const coolLow=document.getElementById("coolLow")
+const coolHigh=document.getElementById("coolHigh")
 
-let currentBrightness = 50
-let currentColorTemp = 4000
+let cursorX=Math.random()
+let cursorY=Math.random()
 
-/* ---------- 图片路径 ---------- */
+let brightness=50
+let colorTemp=4000
 
-const imgPaths = {
-warmLow:'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/3.png',
-warmHigh:'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/2.png',
-coolLow:'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/4.png',
-coolHigh:'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/1.png'
-}
+/* 绘制调色盘 */
 
-const images = {}
+function drawPalette(){
 
-/* ---------- 加载图片 ---------- */
+for(let x=0;x<palette.width;x++){
 
-function loadImages(){
+let grad=ctx.createLinearGradient(0,0,0,palette.height)
 
-const promises = Object.entries(imgPaths).map(([key,src])=>{
-return new Promise(resolve=>{
+let t=2700+(x/palette.width)*3800
 
-const img = new Image()
-img.crossOrigin="anonymous"
-img.src = src
+grad.addColorStop(0,"rgb(255,200,150)")
+grad.addColorStop(1,"rgb(50,50,80)")
 
-img.onload = ()=>{
-images[key]=img
-resolve()
-}
-
-})
-})
-
-return Promise.all(promises)
+ctx.fillStyle=grad
+ctx.fillRect(x,0,1,palette.height)
 
 }
 
-/* ---------- 渲染函数 ---------- */
-
-function render(x,y){
-
-ctx.clearRect(0,0,canvas.width,canvas.height)
-
-ctx.globalAlpha = (1-x)*(1-y)
-ctx.drawImage(images.warmLow,0,0,canvas.width,canvas.height)
-
-ctx.globalAlpha = (1-x)*y
-ctx.drawImage(images.warmHigh,0,0,canvas.width,canvas.height)
-
-ctx.globalAlpha = x*(1-y)
-ctx.drawImage(images.coolLow,0,0,canvas.width,canvas.height)
-
-ctx.globalAlpha = x*y
-ctx.drawImage(images.coolHigh,0,0,canvas.width,canvas.height)
-
-ctx.globalAlpha = 1
-
-drawCursor(x,y)
-
-updateUI(x,y)
+drawCursor()
 
 }
 
-/* ---------- 光标 ---------- */
-
-function drawCursor(x,y){
+function drawCursor(){
 
 ctx.beginPath()
-ctx.arc(x*canvas.width,y*canvas.height,7,0,Math.PI*2)
+ctx.arc(cursorX*palette.width,cursorY*palette.height,6,0,Math.PI*2)
 ctx.fillStyle="white"
 ctx.fill()
 
 }
 
-/* ---------- 更新数值 ---------- */
+/* 更新灯光 */
 
-function updateUI(x,y){
+function updateLighting(){
 
-const colorTemp = Math.round(2700 + x*3800)
-const brightness = Math.round(y*100)
+let x=cursorX
+let y=cursorY
 
-currentColorTemp = colorTemp
-currentBrightness = brightness
+warmLow.style.opacity=(1-x)*(1-y)
+warmHigh.style.opacity=(1-x)*y
+coolLow.style.opacity=x*(1-y)
+coolHigh.style.opacity=x*y
 
-valX.innerText = colorTemp+"K"
-valY.innerText = brightness+"%"
+colorTemp=Math.round(2700+x*3800)
+brightness=Math.round(y*100)
+
+tempText.innerText=colorTemp+"K"
+brightText.innerText=brightness+"%"
 
 }
 
-/* ---------- 鼠标拖动 ---------- */
+/* 鼠标控制 */
 
-canvas.addEventListener("mousemove",(e)=>{
+palette.addEventListener("mousemove",e=>{
 
-if(e.buttons!==1) return
+if(e.buttons!==1)return
 
-const rect = canvas.getBoundingClientRect()
+let rect=palette.getBoundingClientRect()
 
-cursorX = (e.clientX-rect.left)/rect.width
-cursorY = (e.clientY-rect.top)/rect.height
+cursorX=(e.clientX-rect.left)/rect.width
+cursorY=(e.clientY-rect.top)/rect.height
 
 cursorX=Math.max(0,Math.min(1,cursorX))
 cursorY=Math.max(0,Math.min(1,cursorY))
 
-render(cursorX,cursorY)
+ctx.clearRect(0,0,palette.width,palette.height)
+drawPalette()
+
+updateLighting()
 
 })
 
-/* ---------- 初始随机光照 ---------- */
+/* 初始化 */
 
-function startExperiment(){
+drawPalette()
+updateLighting()
 
-cursorX = Math.random()
-cursorY = Math.random()
+/* 3秒提交锁 */
 
-render(cursorX,cursorY)
-
-}
-
-/* ---------- 3秒提交锁 ---------- */
-
-const finishBtn = document.getElementById("finishBtn")
+const finishBtn=document.getElementById("finishBtn")
 
 setTimeout(()=>{
 finishBtn.disabled=false
 finishBtn.classList.add("enabled")
 },3000)
 
-/* ---------- 完成按钮 ---------- */
+/* Credamo回传 */
 
-finishBtn.addEventListener("click",()=>{
+finishBtn.onclick=()=>{
 
-const brightness = currentBrightness
-const colorTemp = currentColorTemp
-
-const credamoURL =
+let url=
 "https://www.credamo.com/survey/QUESTIONNAIRE_ID"+
 "?brightness="+brightness+
 "&colorTemp="+colorTemp
 
-window.location.href = credamoURL
+window.location.href=url
 
-})
-
-/* ---------- 初始化 ---------- */
-
-loadImages().then(()=>{
-
-startExperiment()
-
-})
+}
 
 </script>
 
