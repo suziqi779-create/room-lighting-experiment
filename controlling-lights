@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>灯光调节实验</title>
+
+<style>
+
+body{
+margin:0;
+font-family:sans-serif;
+background:#111;
+color:white;
+display:flex;
+align-items:center;
+justify-content:center;
+height:100vh;
+}
+
+#container{
+display:flex;
+gap:40px;
+align-items:center;
+}
+
+#canvas{
+width:500px;
+height:500px;
+border:2px solid #333;
+cursor:crosshair;
+}
+
+#ui-panel{
+width:200px;
+background:#222;
+padding:20px;
+border-radius:12px;
+}
+
+.label-grid{
+display:grid;
+grid-template-columns:1fr;
+gap:20px;
+}
+
+.data-value{
+font-size:18px;
+font-weight:bold;
+}
+
+#finishBtn{
+width:100%;
+margin-top:20px;
+padding:10px;
+border-radius:10px;
+border:none;
+font-size:14px;
+font-weight:600;
+background:#00ffcc;
+color:black;
+cursor:pointer;
+opacity:0.5;
+}
+
+#finishBtn.enabled{
+opacity:1;
+}
+
+#finishBtn:disabled{
+cursor:not-allowed;
+}
+
+</style>
+</head>
+
+<body>
+
+<div id="container">
+
+<canvas id="canvas" width="500" height="500"></canvas>
+
+<div id="ui-panel">
+
+<div class="label-grid">
+<div>色温 (X): <br><span id="val-x" class="data-value">--</span></div>
+<div>亮度 (Y): <br><span id="val-y" class="data-value">--</span></div>
+</div>
+
+<button id="finishBtn" disabled>完成实验</button>
+
+<div style="margin-top:10px;font-size:12px;color:#aaa;">
+请调节到你认为最舒适的灯光
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+const canvas = document.getElementById("canvas")
+const ctx = canvas.getContext("2d")
+
+const valX = document.getElementById("val-x")
+const valY = document.getElementById("val-y")
+
+let currentBrightness = 50
+let currentColorTemp = 4000
+
+let cursorX = 0.5
+let cursorY = 0.5
+
+function kelvinToRGB(temp){
+
+let temperature = temp / 100
+
+let red,green,blue
+
+if(temperature <= 66){
+red = 255
+green = temperature
+green = 99.4708025861 * Math.log(green) - 161.1195681661
+}else{
+red = temperature - 60
+red = 329.698727446 * Math.pow(red,-0.1332047592)
+
+green = temperature - 60
+green = 288.1221695283 * Math.pow(green,-0.0755148492)
+}
+
+if(temperature >= 66){
+blue = 255
+}else if(temperature <= 19){
+blue = 0
+}else{
+blue = temperature - 10
+blue = 138.5177312231 * Math.log(blue) - 305.0447927307
+}
+
+return [
+Math.min(255,Math.max(0,red)),
+Math.min(255,Math.max(0,green)),
+Math.min(255,Math.max(0,blue))
+]
+
+}
+
+function drawGradient(){
+
+for(let x=0;x<canvas.width;x++){
+
+let temp = 2700 + (x/canvas.width)*3800
+let rgb = kelvinToRGB(temp)
+
+let grad = ctx.createLinearGradient(0,0,0,canvas.height)
+
+grad.addColorStop(0,
+`rgb(${rgb[0]},${rgb[1]},${rgb[2]})`)
+
+grad.addColorStop(1,
+`rgb(${rgb[0]*0.2},${rgb[1]*0.2},${rgb[2]*0.2})`)
+
+ctx.fillStyle = grad
+ctx.fillRect(x,0,1,canvas.height)
+
+}
+
+}
+
+function drawCursor(x,y){
+
+ctx.beginPath()
+ctx.arc(x*canvas.width,y*canvas.height,6,0,Math.PI*2)
+ctx.fillStyle="white"
+ctx.fill()
+
+}
+
+function updateUI(x,y){
+
+const colorTemp = Math.round(2700 + x * 3800)
+const brightness = Math.round(y * 100)
+
+currentColorTemp = colorTemp
+currentBrightness = brightness
+
+valX.innerText = `${colorTemp}K`
+valY.innerText = `${brightness}%`
+
+}
+
+function render(x,y){
+
+ctx.clearRect(0,0,canvas.width,canvas.height)
+
+drawGradient()
+
+drawCursor(x,y)
+
+updateUI(x,y)
+
+}
+
+canvas.addEventListener("mousemove",(e)=>{
+
+if(e.buttons !== 1) return
+
+const rect = canvas.getBoundingClientRect()
+
+cursorX = (e.clientX - rect.left)/rect.width
+cursorY = (e.clientY - rect.top)/rect.height
+
+cursorX = Math.min(1,Math.max(0,cursorX))
+cursorY = Math.min(1,Math.max(0,cursorY))
+
+render(cursorX,cursorY)
+
+})
+
+/* ---------- 初始随机光照 ---------- */
+
+cursorX = Math.random()
+cursorY = Math.random()
+
+render(cursorX,cursorY)
+
+/* ---------- 3秒提交锁 ---------- */
+
+const finishBtn = document.getElementById("finishBtn")
+
+setTimeout(()=>{
+finishBtn.disabled=false
+finishBtn.classList.add("enabled")
+},3000)
+
+/* ---------- 完成按钮 ---------- */
+
+finishBtn.addEventListener("click",()=>{
+
+const brightness = currentBrightness
+const colorTemp = currentColorTemp
+
+const credamoURL =
+"https://www.credamo.com/survey/QUESTIONNAIRE_ID"+
+"?brightness="+brightness+
+"&colorTemp="+colorTemp
+
+window.location.href = credamoURL
+
+})
+
+</script>
+
+</body>
+</html>
