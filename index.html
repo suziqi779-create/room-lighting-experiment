@@ -3,282 +3,176 @@
 <head>
 <meta charset="UTF-8">
 <title>Room Lighting Experiment</title>
-
 <style>
+    body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
+    
+    /* 使用 Canvas 渲染房间，才能实现双层叠加渐变 */
+    #roomCanvas {
+        position: fixed; left: 0; top: 0;
+        width: 100vw; height: 100vh;
+        object-fit: contain;
+    }
 
-body{
-    margin:0;
-    overflow:hidden;
-    font-family:sans-serif;
-    background:#000;
-}
+    /* 控制面板 */
+    #controlPanel {
+        position: fixed; right: 40px; bottom: 40px;
+        padding: 20px; border-radius: 16px;
+        background: rgba(0,0,0,0.35); backdrop-filter: blur(10px);
+        z-index: 20;
+    }
 
-/* 房间图片 */
+    /* 调色矩阵 */
+    #matrix {
+        width: 240px; height: 240px;
+        background: 
+            linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%),
+            linear-gradient(to right, #ff9e42 0%, #b1d2ff 100%);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 12px; cursor: crosshair;
+        position: relative; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        overflow: hidden;
+    }
 
-#roomImage{
+    #cursor {
+        width: 20px; height: 20px; border: 2px solid #fff;
+        border-radius: 50%; position: absolute;
+        transform: translate(-50%,-50%); pointer-events: none;
+        box-shadow: 0 0 15px rgba(0,0,0,1); background: rgba(255,255,255,0.2);
+        z-index: 5;
+    }
 
-    position:fixed;
-    left:0;
-    top:0;
-
-    width:100vw;
-    height:100vh;
-
-    object-fit:contain;
-
-    transition:opacity 0.25s;
-}
-
-
-/* 控制面板 */
-
-#controlPanel{
-
-    position:fixed;
-    right:40px;
-    bottom:40px;
-
-    padding:20px;
-    border-radius:16px;
-
-    background:rgba(0,0,0,0.35);
-    backdrop-filter:blur(10px);
-
-    z-index:20;
-}
-
-
-/* 调色矩阵 */
-
-#matrix {
-
-    width:240px;
-    height:240px;
-
-    background:
-        linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%),
-        linear-gradient(to right, #ff9e42 0%, #b1d2ff 100%);
-
-    border:1px solid rgba(255,255,255,0.2);
-    border-radius:12px;
-
-    cursor:crosshair;
-    position:relative;
-
-    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-
-    overflow:hidden;
-}
-
-
-/* 光标 */
-
-#cursor{
-
-    width:20px;
-    height:20px;
-
-    border:2px solid #fff;
-    border-radius:50%;
-
-    position:absolute;
-
-    transform:translate(-50%,-50%);
-
-    pointer-events:none;
-
-    box-shadow:0 0 15px rgba(0,0,0,1);
-
-    background:rgba(255,255,255,0.2);
-
-    z-index:5;
-}
-
-
-/* 提交按钮 */
-
-#submitBtn{
-
-    margin-top:20px;
-    width:240px;
-
-    padding:10px;
-
-    border:none;
-    border-radius:10px;
-
-    background:#ffffff;
-    font-size:16px;
-
-    cursor:pointer;
-}
-
+    #submitBtn {
+        margin-top: 20px; width: 240px; padding: 10px;
+        border: none; border-radius: 10px; background: #ffffff;
+        font-size: 16px; cursor: pointer; font-weight: bold;
+    }
 </style>
 </head>
-
 <body>
 
-
-<img id="roomImage">
-
+<canvas id="roomCanvas"></canvas>
 
 <div id="controlPanel">
-
-    <div id="matrix">
-        <div id="cursor"></div>
-    </div>
-
+    <div id="matrix"><div id="cursor"></div></div>
     <button id="submitBtn">提交选择</button>
-
 </div>
 
-
-
 <script>
-
-/* 图片路径 */
-
-const imgPaths = {
-    warmLow: '3.png',
-    warmHigh: '2.png',
-    coolLow: '4.png',
-    coolHigh: '1.png'
-};
-
-
-
-/* 预加载图片 */
-
-Object.values(imgPaths).forEach(src=>{
-    const img = new Image();
-    img.src = src;
-});
-
-
-
+const canvas = document.getElementById("roomCanvas");
+const ctx = canvas.getContext("2d");
 const matrix = document.getElementById("matrix");
 const cursor = document.getElementById("cursor");
-const roomImage = document.getElementById("roomImage");
 
-let x = Math.random();
-let y = Math.random();
-
-let startTime = Date.now();
-
-
-
-/* 更新光标 */
-
-function updateCursor(){
-
-    cursor.style.left = (x*100)+"%";
-    cursor.style.top = ((1-y)*100)+"%";
-
-}
-
-
-
-/* 更新房间灯光 */
-
-function updateLighting(){
-
-    if(x<0.5 && y<0.5){
-        roomImage.src = imgPaths.warmLow;
-    }
-
-    if(x<0.5 && y>=0.5){
-        roomImage.src = imgPaths.warmHigh;
-    }
-
-    if(x>=0.5 && y<0.5){
-        roomImage.src = imgPaths.coolLow;
-    }
-
-    if(x>=0.5 && y>=0.5){
-        roomImage.src = imgPaths.coolHigh;
-    }
-
-}
-
-
-
-/* 点击调色盘 */
-
-matrix.addEventListener("click",function(e){
-
-    const rect = matrix.getBoundingClientRect();
-
-    x = (e.clientX - rect.left) / rect.width;
-    y = 1 - (e.clientY - rect.top) / rect.height;
-
-    updateCursor();
-    updateLighting();
-
-});
-
-
-
-/* 初始化 */
-
-updateCursor();
-updateLighting();
-
-
-
-
-/* 提交按钮 */
-
-document.getElementById("submitBtn").onclick = function(){
-
-
-    let duration = Date.now() - startTime;
-
-    if(duration < 1000){
-
-        alert("请至少观察 1 秒后再提交");
-
-        return;
-
-    }
-
-
-    /* 实验数据 */
-
-    const result = {
-
-        brightness:y,
-        colorTemp:x,
-        time:duration
-
-    };
-
-
-    console.log(result);
-
-
-
-    /* Credamo 回传地址（发布问卷后填写） */
-
-    const credamoURL = "https://www.credamo.com/survey/XXXX";
-
-
-
-    const query =
-
-        "?brightness="+result.brightness+
-        "&colorTemp="+result.colorTemp+
-        "&time="+result.time;
-
-
-
-    window.location.href = credamoURL + query;
-
+// 使用你提供的 GitHub CDN 链接
+const imgPaths = {
+    warmLow: 'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/3.png',    // (0,0)
+    warmHigh: 'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/2.png',   // (0,1)
+    coolLow: 'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/4.png',    // (1,0)
+    coolHigh: 'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/1.png'    // (1,1)
 };
 
+const images = {};
+let loadedCount = 0;
+let x = 0.5; // 初始色温
+let y = 0.5; // 初始亮度
+let startTime = Date.now();
 
+// 预加载并存储图片对象
+Object.entries(imgPaths).forEach(([key, src]) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous"; 
+    img.src = src;
+    img.onload = () => {
+        images[key] = img;
+        loadedCount++;
+        if (loadedCount === 4) render();
+    };
+});
 
+function render() {
+    if (loadedCount < 4) return;
+
+    // 自适应屏幕分辨率
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 计算双线性插值权重
+    const w1 = (1 - x) * (1 - y); // 暖暗
+    const w2 = x * (1 - y);       // 冷暗
+    const w3 = (1 - x) * y;       // 暖亮
+    const w4 = x * y;             // 冷亮
+
+    // 设置混合模式为叠加
+    ctx.globalCompositeOperation = 'lighter';
+
+    const drawCover = (img, weight) => {
+        if (weight <= 0) return;
+        ctx.globalAlpha = weight;
+        
+        const imgRatio = img.width / img.height;
+        const canvasRatio = canvas.width / canvas.height;
+        let dw, dh, dx, dy;
+
+        if (canvasRatio > imgRatio) {
+            dw = canvas.width; dh = canvas.width / imgRatio;
+            dx = 0; dy = (canvas.height - dh) / 2;
+        } else {
+            dh = canvas.height; dw = canvas.height * imgRatio;
+            dx = (canvas.width - dw) / 2; dy = 0;
+        }
+        ctx.drawImage(img, dx, dy, dw, dh);
+    };
+
+    drawCover(images.warmLow, w1);
+    drawCover(images.coolLow, w2);
+    drawCover(images.warmHigh, w3);
+    drawCover(images.coolHigh, w4);
+
+    // 更新光标位置
+    cursor.style.left = (x * 100) + "%";
+    cursor.style.top = ((1 - y) * 100) + "%";
+}
+
+// 交互逻辑：点击或拖动
+function handleUpdate(e) {
+    const rect = matrix.getBoundingClientRect();
+    x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    y = Math.max(0, Math.min(1, 1 - (e.clientY - rect.top) / rect.height));
+    render();
+}
+
+matrix.addEventListener("mousedown", (e) => {
+    handleUpdate(e);
+    const onMouseMove = (me) => handleUpdate(me);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", () => {
+        window.removeEventListener("mousemove", onMouseMove);
+    }, { once: true });
+});
+
+window.addEventListener("resize", render);
+
+// 提交按钮逻辑
+document.getElementById("submitBtn").onclick = function() {
+    let duration = Date.now() - startTime;
+    if(duration < 1000) {
+        alert("请观察后再提交");
+        return;
+    }
+
+    // 自动寻找 Credamo 填空题输入框并填值
+    const inputField = document.querySelector('input[type="text"]');
+    if (inputField) {
+        inputField.value = `色温权重:${x.toFixed(2)}, 亮度权重:${y.toFixed(2)}`;
+        inputField.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    // 跳转回传（请替换 XXXX 为你的问卷 ID）
+    const credamoURL = "https://www.credamo.com/survey/XXXX";
+    const query = `?brightness=${y.toFixed(2)}&colorTemp=${x.toFixed(2)}&time=${duration}`;
+    window.location.href = credamoURL + query;
+};
 </script>
-
-
 </body>
 </html>
