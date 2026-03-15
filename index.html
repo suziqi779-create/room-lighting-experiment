@@ -3,223 +3,160 @@
 <head>
 <meta charset="UTF-8">
 <title>Room Lighting Experiment</title>
-
 <style>
-body{
-    margin:0;
-    overflow:hidden;
-    font-family:sans-serif;
-    background:#000;
-}
+    body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
+    
+    /* 画布渲染 */
+    #roomCanvas {
+        position: fixed; left: 0; top: 0;
+        width: 100vw; height: 100vh;
+        object-fit: contain;
+    }
 
-#roomCanvas{
-    position:fixed;
-    left:0;
-    top:0;
-    width:100vw;
-    height:100vh;
-    object-fit:contain;
-}
+    /* 控制面板 */
+    #controlPanel {
+        position: fixed; right: 40px; bottom: 40px;
+        padding: 20px; border-radius: 16px;
+        background: rgba(0,0,0,0.35); backdrop-filter: blur(10px);
+        z-index: 20;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
 
-#controlPanel{
-    position:fixed;
-    right:40px;
-    bottom:40px;
-    padding:20px;
-    border-radius:16px;
-    background:rgba(0,0,0,0.35);
-    backdrop-filter:blur(10px);
-    z-index:20;
-}
+    /* 调色矩阵 */
+    #matrix {
+        width: 240px; height: 240px;
+        background: 
+            linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%),
+            linear-gradient(to right, #ff9e42 0%, #b1d2ff 100%);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-radius: 12px; cursor: crosshair;
+        position: relative; box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        overflow: hidden;
+    }
 
-#matrix{
-    width:240px;
-    height:240px;
-    background:
-        linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%),
-        linear-gradient(to right,#ff9e42 0%,#b1d2ff 100%);
-    border:1px solid rgba(255,255,255,0.2);
-    border-radius:12px;
-    cursor:crosshair;
-    position:relative;
-    box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-}
+    #cursor {
+        width: 20px; height: 20px; border: 2px solid #fff;
+        border-radius: 50%; position: absolute;
+        transform: translate(-50%,-50%); pointer-events: none;
+        box-shadow: 0 0 15px rgba(0,0,0,1); background: rgba(255,255,255,0.2);
+        z-index: 5;
+    }
 
-#cursor{
-    width:20px;
-    height:20px;
-    border:2px solid #fff;
-    border-radius:50%;
-    position:absolute;
-    transform:translate(-50%,-50%);
-    pointer-events:none;
-}
-
-#submitBtn{
-    margin-top:20px;
-    width:240px;
-    padding:10px;
-    border:none;
-    border-radius:10px;
-    background:#ffffff;
-    font-size:16px;
-    cursor:pointer;
-    font-weight:bold;
-}
+    #submitBtn {
+        margin-top: 20px; width: 240px; padding: 12px;
+        border: none; border-radius: 10px; background: #ffffff;
+        font-size: 16px; cursor: pointer; font-weight: bold;
+        transition: background 0.2s;
+    }
+    #submitBtn:hover { background: #eeeeee; }
 </style>
-
 </head>
-
 <body>
 
 <canvas id="roomCanvas"></canvas>
 
 <div id="controlPanel">
-    <div id="matrix">
-        <div id="cursor"></div>
-    </div>
+    <div id="matrix"><div id="cursor"></div></div>
     <button id="submitBtn">提交选择</button>
 </div>
 
 <script>
-
-/* =============================
-读取 Credamo 传入的 pid
-============================= */
-
-const urlParams = new URLSearchParams(window.location.search);
-const pid = urlParams.get("pid");
-
-/* =============================
-基础变量
-============================= */
-
 const canvas = document.getElementById("roomCanvas");
 const ctx = canvas.getContext("2d");
 const matrix = document.getElementById("matrix");
 const cursor = document.getElementById("cursor");
 
-let x = 0.5;   // temp
-let y = 0.5;   // brightness
-let startTime = Date.now();
-
-/* =============================
-图片资源
-============================= */
-
+// 图片资源
 const imgPaths = {
-    warmLow:'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/3.png',
-    warmHigh:'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/2.png',
-    coolLow:'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/4.png',
-    coolHigh:'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/1.png'
+    warmLow: 'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/3.png',    // (0,0)
+    warmHigh: 'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/2.png',   // (0,1)
+    coolLow: 'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/4.png',    // (1,0)
+    coolHigh: 'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/1.png'    // (1,1)
 };
 
 const images = {};
 let loadedCount = 0;
+let x = 0.5; // 初始色温
+let y = 0.5; // 初始亮度
+let startTime = Date.now();
 
-Object.entries(imgPaths).forEach(([key,src])=>{
+// 预加载图片
+Object.entries(imgPaths).forEach(([key, src]) => {
     const img = new Image();
-    img.crossOrigin="anonymous";
+    img.crossOrigin = "anonymous"; 
     img.src = src;
-    img.onload = ()=>{
+    img.onload = () => {
         images[key] = img;
         loadedCount++;
-        if(loadedCount===4) render();
-    }
+        if (loadedCount === 4) render();
+    };
 });
 
-/* =============================
-渲染函数
-============================= */
-
-function render(){
+function render() {
+    if (loadedCount < 4) return;
 
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    // 双线性插值权重
+    const w1 = (1 - x) * (1 - y); // 暖暗
+    const w2 = x * (1 - y);       // 冷暗
+    const w3 = (1 - x) * y;       // 暖亮
+    const w4 = x * y;             // 冷亮
 
-    const w1 = (1-x)*(1-y);
-    const w2 = x*(1-y);
-    const w3 = (1-x)*y;
-    const w4 = x*y;
+    ctx.globalCompositeOperation = 'lighter';
 
-    ctx.globalCompositeOperation='lighter';
+    const drawCover = (img, weight) => {
+        if (weight <= 0 || !img) return;
+        ctx.globalAlpha = weight;
+        
+        const imgRatio = img.width / img.height;
+        const canvasRatio = canvas.width / canvas.height;
+        let dw, dh, dx, dy;
 
-    draw(images.warmLow,w1);
-    draw(images.coolLow,w2);
-    draw(images.warmHigh,w3);
-    draw(images.coolHigh,w4);
+        if (canvasRatio > imgRatio) {
+            dw = canvas.width; dh = canvas.width / imgRatio;
+            dx = 0; dy = (canvas.height - dh) / 2;
+        } else {
+            dh = canvas.height; dw = canvas.height * imgRatio;
+            dx = (canvas.width - dw) / 2; dy = 0;
+        }
+        ctx.drawImage(img, dx, dy, dw, dh);
+    };
 
-    cursor.style.left = (x*100)+"%";
-    cursor.style.top = ((1-y)*100)+"%";
+    drawCover(images.warmLow, w1);
+    drawCover(images.coolLow, w2);
+    drawCover(images.warmHigh, w3);
+    drawCover(images.coolHigh, w4);
+
+    cursor.style.left = (x * 100) + "%";
+    cursor.style.top = ((1 - y) * 100) + "%";
 }
 
-function draw(img,weight){
-
-    if(!img || weight<=0) return;
-
-    ctx.globalAlpha = weight;
-
-    const imgRatio = img.width/img.height;
-    const canvasRatio = canvas.width/canvas.height;
-
-    let dw,dh,dx,dy;
-
-    if(canvasRatio>imgRatio){
-        dw = canvas.width;
-        dh = canvas.width/imgRatio;
-        dx = 0;
-        dy = (canvas.height-dh)/2;
-    }else{
-        dh = canvas.height;
-        dw = canvas.height*imgRatio;
-        dx = (canvas.width-dw)/2;
-        dy = 0;
-    }
-
-    ctx.drawImage(img,dx,dy,dw,dh);
-}
-
-/* =============================
-交互
-============================= */
-
-function update(e){
-
+// 交互逻辑
+function handleUpdate(e) {
     const rect = matrix.getBoundingClientRect();
-
-    x = Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
-    y = Math.max(0,Math.min(1,1-(e.clientY-rect.top)/rect.height));
-
+    x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    y = Math.max(0, Math.min(1, 1 - (e.clientY - rect.top) / rect.height));
     render();
 }
 
-matrix.addEventListener("mousedown",e=>{
-
-    update(e);
-
-    const move = m=>update(m);
-
-    window.addEventListener("mousemove",move);
-
-    window.addEventListener("mouseup",()=>{
-        window.removeEventListener("mousemove",move);
-    },{once:true});
-
+matrix.addEventListener("mousedown", (e) => {
+    handleUpdate(e);
+    const onMouseMove = (me) => handleUpdate(me);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", () => {
+        window.removeEventListener("mousemove", onMouseMove);
+    }, { once: true });
 });
 
-window.addEventListener("resize",render);
+window.addEventListener("resize", render);
 
-/* =============================
-提交并回传 Credamo
-============================= */
-
-document.getElementById("submitBtn").onclick = function(){
-
+// --- 核心修改：提交并回写父页面参数 ---
+document.getElementById("submitBtn").onclick = function() {
     const duration = Date.now() - startTime;
-
-    if(duration < 1000){
+    if(duration < 1000) {
         alert("请观察后再提交");
         return;
     }
@@ -227,15 +164,47 @@ document.getElementById("submitBtn").onclick = function(){
     const brightness = y.toFixed(2);
     const temp = x.toFixed(2);
 
-    const credamoURL = "https://www.credamo.com/answer.html#/s/BfIvAzano";
+    try {
+        // 尝试获取父窗口 URL
+        const parentURL = new URL(window.parent.location.href);
+        parentURL.searchParams.set("brightness", brightness);
+        parentURL.searchParams.set("temp", temp);
 
-    const query =
-    `?pid=${encodeURIComponent(pid)}&brightness=${brightness}&temp=${temp}`;
+        // 更新父窗口 URL
+        window.parent.location.replace(parentURL.toString());
+        
+        alert("数据已记录！请点击上方“关闭外链”或“返回问卷”按钮。");
+    } catch (error) {
+        // 跨域情况下的回退方案
+        console.warn("无法直接修改父页面URL（跨域限制），尝试通讯模式:", error);
+        
+        // 发送消息给父窗口（如果 Credamo 脚本在监听）
+        window.parent.postMessage({
+            type: 'result',
+            brightness: brightness,
+            temp: temp
+        }, '*');
 
-    window.location.href = credamoURL + query;
+        alert("结果已锁定（亮度:" + brightness + ", 色温:" + temp + "）。\n请点击页面上方的“继续实验”按钮继续。");
+    }
 };
-
 </script>
 
+<script src="https://app.credamo.com/credamo/js/credamo_embed.min.js"></script>
+<script>
+    window.onload = function() { 
+        if(window.credamoEmbed) {
+            window.credamoEmbed.initStyle();
+            window.credamoEmbed.initSurvey({
+                "displayType": 1,
+                "rowType": 2,
+                "colType": 2,
+                "iconType": 1,
+                "btnBg": "#3F85FA",
+                "answerUrl": "https://www.credamo.com/answer.html#/s/BfIvAzano"
+            });
+        }
+    }
+</script>
 </body>
 </html>
