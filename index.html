@@ -159,20 +159,36 @@ document.getElementById("submitBtn").onclick = function() {
     if(duration < 1000) {
         alert("请观察后再提交");
         return;
+    };
+</script>
+    <script src="https://app.credamo.com/credamo/js/credamo_embed.min.js"></script>
+        
+<script>
+    function onClose() { 
+        console.log('close callback')
     }
-
-    // 自动寻找 Credamo 填空题输入框并填值
-    const inputField = document.querySelector('input[type="text"]');
-    if (inputField) {
-        inputField.value = `色温权重:${x.toFixed(2)}, 亮度权重:${y.toFixed(2)}`;
-        inputField.dispatchEvent(new Event('input', { bubbles: true }));
+    window.onload = function() { 
+        window.credamoEmbed.initStyle()
+        window.credamoEmbed.initSurvey({
+          "displayType": 1,
+          "rowType": 2,
+          "colType": 2,
+          "iconType": 1,
+          "btnBg": "#3F85FA",
+          "btnText": "",
+          "isAnswerLimit": false,
+          "queryTable": [
+                    {
+                              "name": "userid",
+                              "key": "userid",
+                              "value": "test"
+                    }
+          ],
+          "answerUrl": "https://www.credamo.com/answer.html#/s/MVR7zqano",
+          "isInternational": false,
+          "onClose": onClose
+        })
     }
-
-    // 跳转回传（请替换 XXXX 为你的问卷 ID）
-    const credamoURL = "https://www.credamo.com/survey/XXXX";
-    const query = `?brightness=${y.toFixed(2)}&colorTemp=${x.toFixed(2)}&time=${duration}`;
-    window.location.href = credamoURL + query;
-};
 </script>
 </body>
 </html>
