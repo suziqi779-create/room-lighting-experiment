@@ -174,5 +174,34 @@ document.getElementById("submitBtn").onclick = function() {
     window.location.href = credamoURL + query;
 };
 </script>
+    <script src="https://app.credamo.com/credamo/js/credamo_embed.min.js"></script>
+        
+<script>
+    function onClose() { 
+        console.log('close callback')
+    }
+    window.onload = function() { 
+        window.credamoEmbed.initStyle()
+        window.credamoEmbed.initSurvey({
+          "displayType": 1,
+          "rowType": 2,
+          "colType": 2,
+          "iconType": 1,
+          "btnBg": "#3F85FA",
+          "btnText": "",
+          "isAnswerLimit": false,
+          "queryTable": [
+                    {
+                              "name": "userid",
+                              "key": "userid",
+                              "value": "test"
+                    }
+          ],
+          "answerUrl": "https://www.credamo.com/answer.html#/s/MVR7zqano",
+          "isInternational": false,
+          "onClose": onClose
+        })
+    }
+</script>
 </body>
 </html>
