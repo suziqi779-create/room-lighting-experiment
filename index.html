@@ -1,83 +1,58 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-<meta charset="UTF-8">
-<title>Room Lighting Experiment</title>
-<style>
-    body { margin: 0; overflow: hidden; font-family: "Microsoft YaHei", sans-serif; background: #000; }
-    
-    #roomCanvas { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; object-fit: contain; }
+    <meta charset="UTF-8">
+    <title>Room Lighting Experiment</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: "Microsoft YaHei", sans-serif; background: #000; }
+        #roomCanvas { position: fixed; left: 0; top: 0; width: 100vw; height: 100vh; object-fit: contain; }
 
-    /* 控制面板 */
-    #controlPanel {
-        position: fixed; right: 40px; bottom: 40px;
-        padding: 20px; border-radius: 16px;
-        background: rgba(0,0,0,0.4); backdrop-filter: blur(15px);
-        z-index: 20; border: 1px solid rgba(255,255,255,0.2);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-    }
+        /* 控制面板 */
+        #controlPanel {
+            position: fixed; right: 40px; bottom: 40px;
+            padding: 20px; border-radius: 16px;
+            background: rgba(0,0,0,0.4); backdrop-filter: blur(15px);
+            z-index: 20; border: 1px solid rgba(255,255,255,0.2);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
 
-    #matrix {
-        width: 240px; height: 240px;
-        background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%),
-                    linear-gradient(to right, #ff9e42 0%, #b1d2ff 100%);
-        border: 1px solid rgba(255,255,255,0.3);
-        border-radius: 12px; cursor: crosshair; position: relative;
-    }
+        #matrix {
+            width: 240px; height: 240px;
+            background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%),
+                        linear-gradient(to right, #ff9e42 0%, #b1d2ff 100%);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 12px; cursor: crosshair; position: relative;
+        }
 
-    #cursor {
-        width: 22px; height: 22px; border: 2px solid #fff; border-radius: 50%;
-        position: absolute; transform: translate(-50%,-50%); pointer-events: none;
-        box-shadow: 0 0 10px rgba(0,0,0,0.5); background: rgba(255,255,255,0.2);
-    }
+        #cursor {
+            width: 22px; height: 22px; border: 2px solid #fff; border-radius: 50%;
+            position: absolute; transform: translate(-50%,-50%); pointer-events: none;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5); background: rgba(255,255,255,0.2);
+        }
 
-    #submitBtn {
-        margin-top: 20px; width: 240px; padding: 12px; border: none;
-        border-radius: 10px; background: #ffffff; font-size: 16px;
-        cursor: pointer; font-weight: bold; transition: all 0.3s;
-    }
-    #submitBtn:hover { background: #f0f0f0; transform: translateY(-2px); }
+        #submitBtn {
+            margin-top: 20px; width: 240px; padding: 12px; border: none;
+            border-radius: 10px; background: #3F85FA; color: white; font-size: 16px;
+            cursor: pointer; font-weight: bold; transition: all 0.3s;
+        }
+        #submitBtn:hover { background: #2b73e6; transform: translateY(-2px); }
 
-    /* 结果显示遮罩层 */
-    #resultOverlay {
-        display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.8); z-index: 100;
-        justify-content: center; align-items: center;
-    }
-
-    #resultBox {
-        background: #fff; padding: 30px; border-radius: 20px; width: 320px;
-        text-align: center; box-shadow: 0 20px 50px rgba(0,0,0,0.5);
-    }
-
-    .value-display { font-size: 18px; margin: 10px 0; color: #333; font-weight: bold; }
-    
-    .hint-text { font-size: 14px; color: #666; margin: 15px 0; line-height: 1.5; }
-
-    #copyBtn {
-        background: #3F85FA; color: white; border: none; padding: 12px 25px;
-        border-radius: 8px; font-size: 16px; cursor: pointer; width: 100%;
-    }
-    #copyBtn:hover { background: #2b73e6; }
-</style>
+        /* 成功提示遮罩 */
+        #successToast {
+            display: none; position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(0, 255, 204, 0.9); color: #000; padding: 10px 20px;
+            border-radius: 8px; font-weight: bold; z-index: 1000;
+        }
+    </style>
 </head>
 <body>
 
 <canvas id="roomCanvas"></canvas>
+<div id="successToast">数据已同步，请继续作答</div>
 
 <div id="controlPanel">
     <div id="matrix"><div id="cursor"></div></div>
     <button id="submitBtn">确认选择</button>
-</div>
-
-<div id="resultOverlay">
-    <div id="resultBox">
-        <h3>实验已完成</h3>
-        <div class="value-display" id="brightnessText">亮度权重: --</div>
-        <div class="value-display" id="tempText">色温权重: --</div>
-        <p class="hint-text">点击下方按钮复制数值，<br>并将其粘贴到问卷的下一道填空题中。</p>
-        <button id="copyBtn">复制数值并关闭</button>
-    </div>
 </div>
 
 <script>
@@ -85,8 +60,10 @@ const canvas = document.getElementById("roomCanvas");
 const ctx = canvas.getContext("2d");
 const matrix = document.getElementById("matrix");
 const cursor = document.getElementById("cursor");
+const submitBtn = document.getElementById("submitBtn");
+const toast = document.getElementById("successToast");
 
-// 图片路径
+// 1. 图片资源配置
 const imgPaths = {
     warmLow: 'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/3.png',
     warmHigh: 'https://cdn.jsdelivr.net/gh/suziqi779-create/room-lighting-experiment@main/2.png',
@@ -98,21 +75,28 @@ const images = {};
 let loadedCount = 0;
 let x = 0.5, y = 0.5;
 
-// 预加载
+// 2. 预加载图片
 Object.entries(imgPaths).forEach(([key, src]) => {
     const img = new Image();
     img.crossOrigin = "anonymous"; 
     img.src = src;
-    img.onload = () => { images[key] = img; loadedCount++; if (loadedCount === 4) render(); };
+    img.onload = () => { 
+        images[key] = img; 
+        loadedCount++; 
+        if (loadedCount === 4) render(); 
+    };
 });
 
+// 3. 渲染插值画面
 function render() {
     if (loadedCount < 4) return;
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
     const w1 = (1 - x) * (1 - y), w2 = x * (1 - y), w3 = (1 - x) * y, w4 = x * y;
     ctx.globalCompositeOperation = 'lighter';
+
     const drawCover = (img, weight) => {
         if (weight <= 0 || !img) return;
         ctx.globalAlpha = weight;
@@ -122,11 +106,13 @@ function render() {
         else { dh = canvas.height; dw = canvas.height * imgRatio; dx = (canvas.width - dw) / 2; dy = 0; }
         ctx.drawImage(img, dx, dy, dw, dh);
     };
+
     drawCover(images.warmLow, w1); drawCover(images.coolLow, w2);
     drawCover(images.warmHigh, w3); drawCover(images.coolHigh, w4);
     cursor.style.left = (x * 100) + "%"; cursor.style.top = ((1 - y) * 100) + "%";
 }
 
+// 4. 交互处理
 function handleUpdate(e) {
     const rect = matrix.getBoundingClientRect();
     x = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
@@ -140,58 +126,29 @@ matrix.addEventListener("mousedown", (e) => {
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", () => window.removeEventListener("mousemove", move), { once: true });
 });
+
+// 5. 数据同步核心逻辑：发送给 Credamo 父页面 
+submitBtn.onclick = function() {
+    const brightnessVal = y.toFixed(3);
+    const tempVal = x.toFixed(3);
+    
+    // 发送消息
+    window.parent.postMessage({
+        type: 'lighting_update',
+        temp: tempVal,
+        brightness: brightnessVal
+    }, "*"); 
+
+    // UI 反馈
+    toast.style.display = "block";
+    submitBtn.innerText = "已选择";
+    submitBtn.style.background = "#aaa";
+    submitBtn.disabled = true;
+    
+    setTimeout(() => { toast.style.display = "none"; }, 3000);
+};
+
 window.addEventListener("resize", render);
-
-// --- 结果处理逻辑 ---
-const resultOverlay = document.getElementById("resultOverlay");
-const copyBtn = document.getElementById("copyBtn");
-
-document.getElementById("submitBtn").onclick = function() {
-    const brightnessVal = y.toFixed(2);
-    const tempVal = x.toFixed(2);
-    
-    // 更新显示
-    document.getElementById("brightnessText").innerText = "亮度权重: " + brightnessVal;
-    document.getElementById("tempText").innerText = "色温权重: " + tempVal;
-    
-    // 显示弹窗
-    resultOverlay.style.display = "flex";
-
-    // 尝试向父页面写参数（作为备份，万一没跨域呢）
-    try {
-        const url = new URL(window.parent.location.href);
-        url.searchParams.set("brightness", brightnessVal);
-        url.searchParams.set("temp", tempVal);
-        window.parent.history.replaceState(null, '', url.toString());
-    } catch(e) {}
-};
-
-copyBtn.onclick = function() {
-    const brightnessVal = y.toFixed(2);
-    const tempVal = x.toFixed(2);
-    const resultString = `亮度:${brightnessVal}, 色温:${tempVal}`;
-    
-    // 复制到剪贴板
-    navigator.clipboard.writeText(resultString).then(() => {
-        alert("复制成功！请点击下方“继续作答”返回问卷粘贴。");
-        resultOverlay.style.display = "none";
-    }).catch(err => {
-        alert("自动复制失败，请手动记录数值。");
-    });
-};
-</script>
-
-<script src="https://app.credamo.com/credamo/js/credamo_embed.min.js"></script>
-<script>
-    window.onload = function() { 
-        if(window.credamoEmbed) {
-            window.credamoEmbed.initStyle();
-            window.credamoEmbed.initSurvey({
-                "displayType": 1,
-                "answerUrl": "https://www.credamo.com/answer.html#/s/BfIvAzano"
-            });
-        }
-    }
 </script>
 </body>
 </html>
